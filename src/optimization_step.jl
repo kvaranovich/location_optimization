@@ -19,8 +19,16 @@ function optimization_step_neighbours(mx::MapData, initial_positions::Vector{Int
     return improved_positions, MIN
 end
 
-function optimization_step_radius(mx::MapData, initial_positions::Vector{Int}, t::Float64 = 150.0)
-    possible_moves = find_possible_movements_radius(mx, initial_positions, t)
+function optimization_step_radius(mx::MapData, initial_positions::Vector{Int}, metric, r::Float64 = 150.0)
+    if metric in ["distance", "eucledian"]
+        y = nodes_within_driving_distance
+    elseif metric == "time"
+        y = nodes_within_driving_time
+    else
+        error("Only metric = \"distance\" or metric = \"time\" is allowed")
+    end
+
+    possible_moves = find_possible_movements_radius(mx, initial_positions, y, r)
     estimates_after_move = []
     for move in possible_moves
         NODES = copy(initial_positions)

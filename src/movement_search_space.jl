@@ -14,11 +14,11 @@ function find_possible_movements_neighbours(mx::MapData, positions::Vector{Int})
     return ORIGIN_DESTINATION
 end
 
-function find_possible_movements_radius(mx::MapData, positions::Vector{Int}, t::Float64 = 150.0)
+function find_possible_movements_radius(mx::MapData, positions::Vector{Int}, y, r::Float64 = 150.0)
     ORIGIN_DESTINATION = []
 
     for amb in positions
-        nodes, times = nodes_within_driving_time(mx, [amb], t)
+        nodes, times = y(mx, [amb], r)
         origin_destination = collect(Iterators.product(amb, nodes))
         append!(ORIGIN_DESTINATION, origin_destination)
     end

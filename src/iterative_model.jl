@@ -98,7 +98,7 @@ N_AMB = GRID_DIM[1]*GRID_DIM[2];
 LOC = find_centers(mx, GRID_DIM);
 ORIGIN_NODES = [point_to_nodes(LOC[i], mx) for i in 1:length(LOC)];
 
-t = @elapsed opt_loc = location_optimization_radius(mx, ORIGIN_NODES, 100, r)
+t = @elapsed opt_loc = location_optimization_radius(mx, ORIGIN_NODES, 100, metric, r)
 
 final_nodes = opt_loc[1][end]
 obj = opt_loc[2][end]

@@ -52,6 +52,7 @@ using Random
 using OpenStreetMapXPlot
 using JuMP
 using GLPK
+using GLM
 using RCall
 using StatsBase
 import Plots

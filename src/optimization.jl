@@ -28,14 +28,14 @@ function location_optimization(mx::MapData, initial_positions::Vector{Int}, N_IT
     return NODES, TIMES
 end
 
-function location_optimization_radius(mx::MapData, initial_positions::Vector{Int}, N_ITER = 100, t = 150.0)
+function location_optimization_radius(mx::MapData, initial_positions::Vector{Int}, N_ITER = 100, metric = "time", r = 150.0)
     LAST_NODES = copy(initial_positions)
     NODES = []
     TIMES = []
 
     for i in 1:N_ITER
         println(i)
-        CURR_NODES, CURR_TIME = optimization_step_radius(mx, LAST_NODES, t)
+        CURR_NODES, CURR_TIME = optimization_step_radius(mx, LAST_NODES, metric, r)
 
         if i > 1
             if CURR_TIME >= TIMES[end]
