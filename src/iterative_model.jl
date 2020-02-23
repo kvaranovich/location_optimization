@@ -146,6 +146,11 @@ transitions_df = DataFrame(
 
 CSV.write(output_path * "/transitions_df.csv", transitions_df)
 
+results_df = DataFrame(datetime = Dates.now(), model_type = "iterative", metric = metric,
+                       p = p, m = length(mx.v), n = length(mx.v), q = 0, R = 0.0, r = r,
+                       obj = obj, obj2 = 0.0, proc_time = t)
+CSV.write(output_path * "/../../output_all_models.csv", results_df, append=true)
+
 # Visualization of results in R's ggmap
 println("===== Writing Output information: 3. Plotting results on a map =====")
 @rput final_nodes demand_points transitions_df times

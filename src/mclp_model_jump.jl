@@ -198,6 +198,11 @@ CSV.write(output_path * "/candidates.csv", candidates)
 CSV.write(output_path * "/demand_points.csv", demand_points)
 CSV.write(output_path * "/demand_assignment.csv", demand_assignment)
 
+results_df = DataFrame(datetime = Dates.now(), model_type = "mclp", metric = metric,
+                       p = p, m = m, n = n, q = Q, R = r, r = 0.0, obj = obj,
+                       obj2 = objective_value(model), proc_time = t)
+CSV.write(output_path * "/../../output_all_models.csv", results_df, append=true)
+
 # Visualization of results in R's ggmap
 println("===== Writing Output information: 3. Plotting results on a map =====")
 @rput candidates demand_points demand_assignment
