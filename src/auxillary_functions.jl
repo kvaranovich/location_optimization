@@ -31,6 +31,11 @@ function find_centers(mx::MapData, dim)
     return LOC
 end
 
+function generate_ambulances(mx::MapData, p::Int)
+    origin_nodes = sample(collect(keys(mx.v)), p, replace=false)
+    return origin_nodes
+end
+
 function plot_points(mx::MapData, LOC)
     flm = pyimport("folium")
     matplotlib_cm = pyimport("matplotlib.cm")
