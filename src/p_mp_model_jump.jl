@@ -87,8 +87,10 @@ const reachable_nodes, node_data = find_connected_nodes(mx, metric)
 #Output folder
 # ========================================
 println("===== Creating Output Folder =====")
-output_path = "../output/p-mp/" *string(Dates.today()) * "_" * city * "_" * metric * "_" *
-              "p-" * string(p) * "_m-" * string(m) * "_n-" * string(n) * "_q-" * string(Q)
+output_path = "../output/p-mp/" *
+              string(Dates.format(Dates.now(), "yyyymmdd_HHMM_")) *
+              city * "_" * metric * "_" * "p" * string(p) *
+              "_m" * string(m) * "_n" * string(n) * "_q" * string(Q)
 mkdir(output_path)
 
 # ========================================

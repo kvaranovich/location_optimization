@@ -94,8 +94,10 @@ const reachable_nodes, node_data = find_connected_nodes(mx, metric)
 #Output folder
 # ========================================
 println("===== Creating Output Folder =====")
-output_path = "../output/mclp/" *string(Dates.today()) * "_" * city * "_" * metric * "_" *
-              "p-" * string(p) * "_m-" * string(m) * "_n-" * string(n) * "_q-" * string(Q) * "_r-" * string(r)
+output_path = "../output/mclp/" *
+              string(Dates.format(Dates.now(), "yyyymmdd_HHMM_")) * city *
+              "_" * metric * "_" * "p" * string(p) * "_m" * string(m) *
+              "_n" * string(n) * "_q" * string(Q) * "_r" * string(Int(r))
 mkdir(output_path)
 
 # ========================================
