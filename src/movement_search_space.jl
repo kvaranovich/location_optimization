@@ -14,7 +14,7 @@ function find_possible_movements_neighbours(mx::MapData, positions::Vector{Int})
     return ORIGIN_DESTINATION
 end
 
-function find_possible_movements_radius(mx::MapData, positions::Vector{Int}, y, r::Float64 = 150.0)
+function find_possible_movements_radius(mx::MapData, positions::Vector{Int}, y; r::Float64 = 150.0)
     ORIGIN_DESTINATION = []
 
     for (index, value) in enumerate(positions)
@@ -26,13 +26,13 @@ function find_possible_movements_radius(mx::MapData, positions::Vector{Int}, y, 
     return ORIGIN_DESTINATION
 end
 
-function find_possible_movements_donut_search(mx::MapData, positions::Vector{Int}, r1, r2, r3)
+function find_possible_movements_donut_search(mx::MapData, positions::Vector{Int}, y; r1, r2, r3)
     ORIGIN_DESTINATION = []
 
     for amb in positions
-        nodes_r1, times_r1 = nodes_within_driving_time(mx, [amb], r1)
-        nodes_r2, times_r2 = nodes_within_driving_time(mx, [amb], r2)
-        nodes_r3, times_r3 = nodes_within_driving_time(mx, [amb], r3)
+        nodes_r1, times_r1 = y(mx, [amb], r1)
+        nodes_r2, times_r2 = y(mx, [amb], r2)
+        nodes_r3, times_r3 = y(mx, [amb], r3)
         nodes = vcat(nodes_r1, setdiff(nodes_r3, nodes_r2))
         origin_destination = collect(Iterators.product(amb, nodes))
         append!(ORIGIN_DESTINATION, origin_destination)

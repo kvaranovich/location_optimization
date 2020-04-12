@@ -35,7 +35,7 @@ function location_optimization_radius(mx::MapData, initial_positions::Vector{Int
 
     for i in 1:N_ITER
         println(i)
-        CURR_NODES, CURR_TIME = optimization_step_radius(mx, LAST_NODES, metric, r)
+        CURR_NODES, CURR_TIME = optimization_step(mx, LAST_NODES, metric, find_possible_movements_radius; r = r)
 
         if i > 1
             if CURR_TIME >= TIMES[end]
