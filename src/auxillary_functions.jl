@@ -24,16 +24,24 @@ function make_grid(mx::MapData, k::Int64)
     return A, B
 end
 
-function find_centers(mx::MapData, dim)
-    X_TICKS = collect(range(mx.bounds.min_x, mx.bounds.max_x, length = GRID_DIM[1]*2+1))
-    Y_TICKS = collect(range(mx.bounds.min_y, mx.bounds.max_y, length = GRID_DIM[2]*2+1))
-    LOC = vec([LLA(y, x) for x=X_TICKS[2:2:length(X_TICKS)], y=Y_TICKS[2:2:length(Y_TICKS)]])
-    return LOC
+function find_centers(mx::MapData, grid_dim)
+    x_ticks = collect(range(mx.bounds.min_x, mx.bounds.max_x, length = grid_dim[1]*2+1))
+    y_ticks = collect(range(mx.bounds.min_y, mx.bounds.max_y, length = grid_dim[2]*2+1))
+    loc = vec([LLA(y, x) for x=x_ticks[2:2:length(x_ticks)], y=y_ticks[2:2:length(y_ticks)]])
+    return loc
 end
 
-function generate_ambulances(mx::MapData, p::Int)
-    origin_nodes = sample(collect(keys(mx.v)), p, replace=false)
-    return origin_nodes
+function generate_ambulances_random(mx::MapData, p::Int)
+    initial_nodes = sample(collect(keys(mx.v)), p, replace=false)
+    return initial_nodes
+end
+
+function generate_ambulances_centers(mx::MapData, p::Int)
+    grid_dim = make_grid(mx, p)
+    n_amb = grid_dim[1]*grid_dim[2]
+    loc = find_centers(mx, grid_dim)
+    initial_nodes = [point_to_nodes(loc[i], mx) for i in 1:length(loc)]
+    return initial_nodes
 end
 
 function plot_points(mx::MapData, LOC)
