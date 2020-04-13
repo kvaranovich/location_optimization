@@ -25,3 +25,9 @@ Manifest.toml
 
 #Output
 output/
+
+#Large Files
+osm_maps/
+
+#Secrets
+GOOGLE_API_KEY.txt
