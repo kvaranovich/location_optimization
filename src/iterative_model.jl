@@ -26,6 +26,13 @@ function parse_commandline()
       time. Examples: [100.00, 150.00, 175.00] for time and [1000.00, 2000.00, 3000.00]"""
       arg_type = Float64
       required = true
+    "--ruin_random"
+      help = """% of potential moves to randomly destroy at each iteration. In
+      general, leads to better computing time at a cost of worse results. It
+      is not recommended to set it higher than 0.5. Setting parameter to 0.0
+      means that no potential moves are destroyed, i.e. all moves are considered"""
+      arg_type = Float64
+      required = true
   end
 
   return parse_args(s)
@@ -69,6 +76,7 @@ const r = args["r"] #radius of local search
 const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
+const ruin_random = args["ruin_random"]
 
 mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5));
 
@@ -78,7 +86,7 @@ mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5));
 println("===== Creating Output Folder =====")
 output_path = "../output/iterative/" *
               string(Dates.format(Dates.now(), "yyyymmdd_HHMM_")) * city *
-              "_" * metric * "_" * "p" * string(p)
+              "_" * metric * "_p" * string(p) * "_ruin" * string(ruin_random)
 mkdir(output_path)
 
 # ========================================
@@ -94,12 +102,9 @@ end
 # Model
 # ========================================
 
-GRID_DIM = make_grid(mx, p);
-N_AMB = GRID_DIM[1]*GRID_DIM[2];
-LOC = find_centers(mx, GRID_DIM);
-ORIGIN_NODES = [point_to_nodes(LOC[i], mx) for i in 1:length(LOC)];
-
-t = @elapsed opt_loc = location_optimization_radius(mx, ORIGIN_NODES, 100, metric, r)
+initial_nodes = generate_ambulances_centers(mx, p)
+t = @elapsed opt_loc = location_optimization_radius(mx, initial_nodes, 100,
+                                                    metric, ruin_random, r)
 
 final_nodes = opt_loc[1][end]
 obj = opt_loc[2][end]
