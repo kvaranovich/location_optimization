@@ -26,6 +26,16 @@ function parse_commandline()
       time. Examples: [100.00, 150.00, 175.00] for time and [1000.00, 2000.00, 3000.00]"""
       arg_type = Float64
       required = true
+    "--R"
+      help = """radius of required coverage / threshold in meters, e.g.
+      [3000.00, 4500.00, 6000.00] or seconds, e.g. [300.0, 600.0, 900.0];"""
+      arg_type = Float64
+      required = true
+    "--q"
+      help = """minimum number of coverage, e.g. [1, 2, 3]. Used only to calculate
+      C1:C5 metrics. Doesn't influence final allocation."""
+      arg_type = Int
+      required = true
     "--ruin_random"
       help = """% of potential moves to randomly destroy at each iteration. In
       general, leads to better computing time at a cost of worse results. It
@@ -63,6 +73,7 @@ include("movement_search_space.jl")
 include("optimization_step.jl")
 include("optimization.jl")
 include("distance_matrix.jl")
+include("performance_metrics.jl")
 
 # Examples input parameters for interactive testing
 # args = Dict("city" => "winnipeg", "metric" => "distance", "p" => 9, "r" => 150.00)
@@ -73,6 +84,8 @@ include("distance_matrix.jl")
 println("===== Input parameters and data =====")
 const p = args["p"] #number of facilities
 const r = args["r"] #radius of local search
+const R = args["R"] #required threshold / coverage for an ambulance
+const q = args["q"] #required number of coverage for each demand point
 const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
@@ -101,6 +114,7 @@ end
 # ========================================
 # Model
 # ========================================
+println("===== Model optimization =====")
 
 initial_nodes = generate_ambulances_centers(mx, p)
 t = @elapsed opt_loc = location_optimization_radius(mx, initial_nodes, 100,
@@ -109,12 +123,20 @@ t = @elapsed opt_loc = location_optimization_radius(mx, initial_nodes, 100,
 final_nodes = opt_loc[1][end]
 obj = opt_loc[2][end]
 
+println("===== Calculating C1-C5 metrics =====")
+C1, C2, C3, C4, C5 = c1_c5_metrics(mx, final_nodes, metric, R, q)
+
 #Writing output information
 println("===== Writing Output information: 1. Results =====")
 open(output_path * "/results.txt", "w") do f
   print(f, "===== Results =====" * "\n")
   print(f, "Processing time: " * string(t) * "\n")
   print(f, "Objective value: " * string(obj) * "\n")
+  print(f, "C1: " * string(C1) * "\n")
+  print(f, "C2: " * string(C2) * "\n")
+  print(f, "C3: " * string(C3) * "\n")
+  print(f, "C4: " * string(C4) * "\n")
+  print(f, "C5: " * string(C5) * "\n")
 end
 
 #Converting nodes to Longitude, Latitude for visualization
@@ -153,8 +175,9 @@ transitions_df = DataFrame(
 CSV.write(output_path * "/transitions_df.csv", transitions_df)
 
 results_df = DataFrame(datetime = Dates.now(), model_type = "iterative", metric = metric,
-                       p = p, m = length(mx.v), n = length(mx.v), q = 0, R = 0.0, r = r,
-                       obj = obj, obj2 = 0.0, proc_time = t)
+                       p = p, m = length(mx.v), n = length(mx.v), q = q, R = R, r = r,
+                       obj = obj, obj2 = 0.0, proc_time = t, ruin_random = ruin_random,
+                       C1 = C1, C2 = C2, C3 = C3, C4 = C4, C5 = C5)
 CSV.write(output_path * "/../../output_all_models.csv", results_df, append=true)
 
 # Visualization of results in R's ggmap
@@ -184,7 +207,10 @@ plt <- ggmap(map_city) +
              shape = 23, alpha = 0.75, size=3, fill="green") +
   xlab("Longitude") + ylab("Latitude") +
   ggtitle("Demand Points",
-          subtitle = paste0("Objective value = ", as.character(round($obj, 4)), " seconds\n",
+          subtitle = paste0("City: ", stringr::str_to_title($city), "\n",
+                            "p = ", as.character($p), " ambulances, ",
+                            "ruin_random = ", as.character($ruin_random), "\n",
+                            "Objective value = ", as.character(round($obj, 4)), " seconds\n",
                             "Optimization time = ", as.character(round($t/60, 4)), " minutes"))
 
 ggsave(filename = "positions.png", path = $output_path,  plot = plt)
