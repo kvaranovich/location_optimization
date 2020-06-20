@@ -132,8 +132,12 @@ end
 
 function radius_m_to_sec(mx::MapData, r::Float64)
     println("===== Converting meters to seconds =====")
-    nd_km = nodes_within_driving_distance(mx, ORIGIN_NODES, 99999999.99) |> DataFrame
-    nd_sec = nodes_within_driving_time(mx, ORIGIN_NODES, 99999999.99) |> DataFrame
+    grid_dim = make_grid(mx, 1);
+    n_amb = grid_dim[1]*grid_dim[2];
+    loc = find_centers(mx, grid_dim);
+    origin_nodes = [point_to_nodes(loc[i], mx) for i in 1:length(loc)];
+    nd_km = nodes_within_driving_distance(mx, origin_nodes, 99999999.99) |> DataFrame
+    nd_sec = nodes_within_driving_time(mx, origin_nodes, 99999999.99) |> DataFrame
     nd = join(nd_km, nd_sec, on = :x1, makeunique=true)
 
     lm_fit = lm(@formula(x2_1 ~ x2), nd)
