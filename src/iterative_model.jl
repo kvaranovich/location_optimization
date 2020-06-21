@@ -99,7 +99,8 @@ mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5));
 println("===== Creating Output Folder =====")
 output_path = "../output/iterative/" *
               string(Dates.format(Dates.now(), "yyyymmdd_HHMM_")) * city *
-              "_" * metric * "_p" * string(p) * "_ruin" * string(ruin_random)
+              "_" * metric * "_p" * string(p) * "_r" * string(Int(r)) *
+			  "_ruin" * string(ruin_random)
 mkdir(output_path)
 
 # ========================================
