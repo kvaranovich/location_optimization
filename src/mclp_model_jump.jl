@@ -37,6 +37,10 @@ function parse_commandline()
       meters are gonna be converted to seconds if the specified metric is time"""
       arg_type = Float64
       required = true
+    "--seed"
+      help = "random seed for reproducing results"
+      arg_type = Int
+      required = true
   end
 
   return parse_args(s)
@@ -87,6 +91,8 @@ const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
 const r = args["r"] #radius in km e.g. [3000.00, 4500.00, 6000.00]
+const seed = args["seed"]
+Random.seed!(seed)
 
 mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5));
 if metric == "time" const r = radius_m_to_sec(mx, r) end;

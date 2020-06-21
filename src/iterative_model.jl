@@ -43,6 +43,10 @@ function parse_commandline()
       means that no potential moves are destroyed, i.e. all moves are considered"""
       arg_type = Float64
       required = true
+	"--seed"
+	  help = "random seed for reproducing results"
+	  arg_type = Int
+	  required = true
   end
 
   return parse_args(s)
@@ -90,6 +94,8 @@ const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
 const ruin_random = args["ruin_random"]
+const seed = args["seed"]
+Random.seed!(seed)
 
 mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5));
 

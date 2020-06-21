@@ -43,6 +43,11 @@ function parse_commandline()
       means that no potential moves are destroyed, i.e. all moves are considered"""
       arg_type = Float64
       required = true
+    "--seed"
+      help = "random seed for reproducing results"
+      arg_type = Int
+      required = true
+      default = 1
   end
 
   return parse_args(s)
@@ -90,6 +95,8 @@ const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
 const ruin_random = args["ruin_random"]
+const seed = args["seed"]
+Random.seed!(seed)
 
 mx_3 = get_map_data(map_path, use_cache=false, road_levels=Set(1:3));
 mx_4 = get_map_data(map_path, use_cache=false, road_levels=Set(1:4));
@@ -195,7 +202,8 @@ println("===== Writing Output information: 3. Plotting results on a map =====")
 @rput final_nodes demand_points transitions_df times
 
 R"""
-library(ggmap)
+library(ggplot2)
+suppressPackageStartupMessages(library(ggmap))
 library(gganimate)
 
 if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
@@ -223,7 +231,9 @@ plt <- ggmap(map_city) +
                             "Objective value = ", as.character(round($obj, 4)), " seconds\n",
                             "Optimization time = ", as.character(round($t/60, 4)), " minutes"))
 
-ggsave(filename = "positions.png", path = $output_path,  plot = plt)
+suppressMessages(
+  ggsave(filename = "positions.png", path = $output_path,  plot = plt)
+)
 """
 
 # Output - animation of optimization
@@ -242,7 +252,9 @@ anim <- p +
 
 a <- animate(anim, fps = 5, nframes = 2*max(transitions_df$state))
 
-anim_save(filename = "optimization.gif", animation = a, path = $output_path)
+suppressMessages(
+  anim_save(filename = "optimization.gif", animation = a, path = $output_path)
+)
 """
 
 println("=============== Finished processing ===============")

@@ -38,6 +38,10 @@ function parse_commandline()
       In p-mp model this argument is only used to calculate C1-C5 metrics"""
       arg_type = Float64
       required = true
+    "--seed"
+      help = "random seed for reproducing results"
+      arg_type = Int
+      required = true
   end
 
   return parse_args(s)
@@ -87,6 +91,8 @@ const r = args["r"] #minimum number of coverage required
 const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
+const seed = args["seed"]
+Random.seed!(seed)
 
 mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5));
 const reachable_nodes, node_data = find_connected_nodes(mx, metric)
