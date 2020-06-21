@@ -7,7 +7,7 @@ using ArgParse
 function parse_commandline()
   s = ArgParseSettings()
 
-  @add_arg_table s begin
+  @add_arg_table! s begin
     "--city"
       help = "name of .osm file in osm_maps folder, representing a city (without .osm extension)"
       arg_type = String

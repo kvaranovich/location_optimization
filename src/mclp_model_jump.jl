@@ -7,7 +7,7 @@ using ArgParse
 function parse_commandline()
   s = ArgParseSettings()
 
-  @add_arg_table s begin
+  @add_arg_table! s begin
     "--city"
       help = "name of .osm file in osm_maps folder, representing a city (without .osm extension)"
       arg_type = String
@@ -222,8 +222,9 @@ println("===== Writing Output information: 3. Plotting results on a map =====")
 @rput candidates demand_points demand_assignment
 
 R"""
-library(ggmap)
-library(dplyr)
+library(ggplot2)
+suppressPackageStartupMessages(library(ggmap))
+suppressPackageStartupMessages(library(dplyr))
 
 if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
   KEY <- readr::read_file('../GOOGLE_API_KEY.txt');
@@ -259,6 +260,8 @@ plt <- ggmap(map_city) +
   labs(fill = "Is Candidate Location Occupied",
        size = "Is Candidate Location Occupied")
 
-ggsave(filename = "positions.png", path = $output_path,  plot = plt)
+suppressMessages(
+  ggsave(filename = "positions.png", path = $output_path,  plot = plt)
+)
 """
 println("=============== Finished processing ===============")

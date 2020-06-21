@@ -7,7 +7,7 @@ using ArgParse
 function parse_commandline()
   s = ArgParseSettings()
 
-  @add_arg_table s begin
+  @add_arg_table! s begin
     "--city"
       help = "name of .osm file in osm_maps folder, representing a city (without .osm extension)"
       arg_type = String
@@ -186,7 +186,8 @@ println("===== Writing Output information: 3. Plotting results on a map =====")
 @rput final_nodes demand_points transitions_df times
 
 R"""
-library(ggmap)
+library(ggplot2)
+suppressPackageStartupMessages(library(ggmap))
 library(gganimate)
 
 if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
@@ -233,7 +234,9 @@ anim <- p +
 
 a <- animate(anim, fps = 5, nframes = 2*max(transitions_df$state))
 
-anim_save(filename = "optimization.gif", animation = a, path = $output_path)
+suppressMessages(
+	anim_save(filename = "optimization.gif", animation = a, path = $output_path)
+)
 """
 
 println("=============== Finished processing ===============")

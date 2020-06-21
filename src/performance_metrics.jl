@@ -44,15 +44,15 @@ function c1_c5_metrics(mx::MapData, positions::Vector{Int}, metric::String, R::F
         one_node_df = DataFrame(node = node_data[val][1],
                                 amb = val,
                                 dist = node_data[val][2])
-        names!(one_node_df, Symbol.(col_names))
-        metrics_df = join(metrics_df, one_node_df, on = :node)
+        rename!(one_node_df, Symbol.(col_names))
+        metrics_df = innerjoin(metrics_df, one_node_df, on = :node)
     end
 
     sub_df = metrics_df[:, Symbol.(string.("dist_", 1:n))]
 
     #Finding best distances
     best_dist = hcat([sort(Vector(r))[1:Q] for r in eachrow(sub_df)]...) |> transpose |> DataFrame
-    names!(best_dist, Symbol.(string.("best_",1:Q)))
+    rename!(best_dist, Symbol.(string.("best_",1:Q)))
     metrics_df = hcat(metrics_df, best_dist)
 
     #Finding how many times a demand point is covered

@@ -7,7 +7,7 @@ using ArgParse
 function parse_commandline()
   s = ArgParseSettings()
 
-  @add_arg_table s begin
+  @add_arg_table! s begin
     "--city"
       help = "name of .osm file in osm_maps folder, representing a city (without .osm extension)"
       arg_type = String
@@ -137,7 +137,7 @@ CSV.write(output_path * "/distance_matrix.csv", D_ij_df)
 
 # 3. Define a JuMP Model
 println("===== Model: 4. Defining a JuMP Model =====")
-model = Model(with_optimizer(GLPK.Optimizer))
+model = Model(GLPK.Optimizer)
 
 @variable(model, y[1:m], Bin) # 1 if facility is sited at location "i"
 @variable(model, z[1:m, 1:n], Bin) # 1 demand j is assigned to a facility at location "i"
@@ -193,7 +193,7 @@ demand_points = DataFrame(node = string.(N), #cast to string to avoid type conve
                           lon = [x[2] for x in LLA_N])
 demand_assignment = DataFrame(convert(Array{Int}, JuMP.value.(z)))
 vals = [Symbol(x) for x in "N" .* string.(1:n)]
-names!(demand_assignment, vals)
+rename!(demand_assignment, vals)
 demand_assignment = hcat("M" .* string.(1:m), demand_assignment)
 
 CSV.write(output_path * "/candidates.csv", candidates)
@@ -212,8 +212,9 @@ println("===== Writing Output information: 3. Plotting results on a map =====")
 @rput candidates demand_points demand_assignment
 
 R"""
-library(ggmap)
-library(dplyr)
+library(ggplot2)
+suppressPackageStartupMessages(library(ggmap))
+suppressPackageStartupMessages(library(dplyr))
 
 if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
   KEY <- readr::read_file('../GOOGLE_API_KEY.txt');
@@ -249,6 +250,8 @@ plt <- ggmap(map_city) +
   labs(fill = "Is Candidate Location Occupied",
        size = "Is Candidate Location Occupied")
 
-ggsave(filename = "positions.png", path = $output_path,  plot = plt)
+suppressMessages(
+  ggsave(filename = "positions.png", path = $output_path,  plot = plt)
+)
 """
 println("=============== Finished processing ===============")
