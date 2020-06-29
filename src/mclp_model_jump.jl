@@ -105,7 +105,8 @@ println("===== Creating Output Folder =====")
 output_path = "../output/mclp/" *
               string(Dates.format(Dates.now(), "yyyymmdd_HHMM_")) * city *
               "_" * metric * "_" * "p" * string(p) * "_m" * string(m) *
-              "_n" * string(n) * "_q" * string(q) * "_r" * string(Int(round(r)))
+              "_n" * string(n) * "_q" * string(q) * "_r" * string(Int(round(r))) *
+              "_seed" * string(seed)
 mkdir(output_path)
 
 # ========================================
@@ -151,7 +152,7 @@ CSV.write(output_path * "/covered_or_not.csv", Q_ij_df)
 
 # 3. Define a JuMP Model
 println("===== Model: 4. Defining a JuMP Model =====")
-model = Model(with_optimizer(GLPK.Optimizer))
+model = Model(GLPK.Optimizer)
 
 @variable(model, y[1:m], Bin) # constraint 9; 1 if facility is sited at location "i"
 @variable(model, z[1:n], Bin) # constraint 9; 1 demand j is assigned to a facility at location "i"
@@ -231,6 +232,7 @@ R"""
 library(ggplot2)
 suppressPackageStartupMessages(library(ggmap))
 suppressPackageStartupMessages(library(dplyr))
+source("auxillary_functions.R")
 
 if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
   KEY <- readr::read_file('../GOOGLE_API_KEY.txt');
@@ -245,6 +247,9 @@ if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
 
 R"""
 candidates <- candidates %>% arrange(is_occupied)
+circles_df <- make_circles(candidates %>% filter(is_occupied == 1),
+                           radius = $r/1000)
+
 plt <- ggmap(map_city) +
   geom_point(aes(x=lon, y=lat),
              data=demand_points, color="black", size=1, alpha = 0.5) +
@@ -252,6 +257,8 @@ plt <- ggmap(map_city) +
                  fill=factor(is_occupied, labels = c("No", "Yes")),
                  size=factor(is_occupied, labels = c("No", "Yes")) ),
              data=candidates, shape = 23, alpha = 0.75) +
+  geom_polygon(data = circles_df, aes(lon, lat, group = node),
+               color = "orange", alpha = 0, linetype = "dashed") +
   scale_fill_manual(values = c("No" = "red", "Yes" = "green")) +
   scale_size_manual(values = c("No" = 1.5, "Yes" = 3)) +
   xlab("Longitude") + ylab("Latitude") +

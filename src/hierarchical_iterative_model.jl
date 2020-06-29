@@ -43,6 +43,11 @@ function parse_commandline()
       means that no potential moves are destroyed, i.e. all moves are considered"""
       arg_type = Float64
       required = true
+    "--initialization_strategy"
+    	help = """how starting location are initialized. Can be either 'random' or
+    	'centered'"""
+    	arg_type = String
+    	required = true
     "--seed"
       help = "random seed for reproducing results"
       arg_type = Int
@@ -95,8 +100,17 @@ const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
 const ruin_random = args["ruin_random"]
+const initialization_strategy = args["initialization_strategy"]
 const seed = args["seed"]
 Random.seed!(seed)
+
+if initialization_strategy == "centered"
+	fun_init_strategy = generate_ambulances_centers
+elseif initialization_strategy == "random"
+	fun_init_strategy = generate_ambulances_random
+else
+	error("Wrong strategy - choose either 'centered' or 'random'")
+end
 
 mx_3 = get_map_data(map_path, use_cache=false, road_levels=Set(1:3));
 mx_4 = get_map_data(map_path, use_cache=false, road_levels=Set(1:4));
@@ -109,7 +123,8 @@ println("===== Creating Output Folder =====")
 output_path = "../output/hierarchical/" *
               string(Dates.format(Dates.now(), "yyyymmdd_HHMM_")) * city *
               "_" * metric * "_p" * string(p) * "_r" * string(Int(round(r))) *
-              "_ruin" * string(ruin_random)
+              "_ruin" * string(ruin_random) * "_" * initialization_strategy *
+							"_seed" * string(seed)
 mkdir(output_path)
 
 # ========================================
@@ -126,7 +141,7 @@ end
 # ========================================
 println("===== Model optimization =====")
 
-initial_nodes = generate_ambulances_centers(mx_3, p)
+initial_nodes = fun_init_strategy(mx_3, p)
 t_1 = @elapsed opt_loc_1 = location_optimization_radius(mx_3, initial_nodes, 100,
                                                         metric, ruin_random, r)
 t_2 = @elapsed opt_loc_2 = location_optimization_radius(mx_4, opt_loc_1[1][end], 100,
@@ -205,6 +220,7 @@ R"""
 library(ggplot2)
 suppressPackageStartupMessages(library(ggmap))
 library(gganimate)
+source("auxillary_functions.R")
 
 if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
   KEY <- readr::read_file('../GOOGLE_API_KEY.txt');
@@ -218,11 +234,14 @@ if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
 """
 
 R"""
+circles_df <- make_circles(final_nodes, radius = $R/1000)
 plt <- ggmap(map_city) +
   geom_point(aes(x=lon, y=lat),
              data=demand_points, color="black", size=1, alpha = 0.5) +
   geom_point(aes(x=lon, y=lat), data=final_nodes,
              shape = 23, alpha = 0.75, size=3, fill="green") +
+  geom_polygon(data = circles_df, aes(lon, lat, group = node),
+               color = "orange", alpha = 0, linetype = "dashed") +
   xlab("Longitude") + ylab("Latitude") +
   ggtitle("Demand Points",
           subtitle = paste0("City: ", stringr::str_to_title($city), "\n",
@@ -231,9 +250,7 @@ plt <- ggmap(map_city) +
                             "Objective value = ", as.character(round($obj, 4)), " seconds\n",
                             "Optimization time = ", as.character(round($t/60, 4)), " minutes"))
 
-suppressMessages(
-  ggsave(filename = "positions.png", path = $output_path,  plot = plt)
-)
+suppressMessages(ggsave(filename = "positions.png", path = $output_path,  plot = plt))
 """
 
 # Output - animation of optimization
@@ -252,9 +269,7 @@ anim <- p +
 
 a <- animate(anim, fps = 5, nframes = 2*max(transitions_df$state))
 
-suppressMessages(
-  anim_save(filename = "optimization.gif", animation = a, path = $output_path)
-)
+suppressMessages(anim_save(filename = "optimization.gif", animation = a, path = $output_path))
 """
 
 println("=============== Finished processing ===============")
