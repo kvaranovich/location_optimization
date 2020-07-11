@@ -31,3 +31,9 @@ osm_maps/
 
 #Secrets
 GOOGLE_API_KEY.txt
+
+#R specific files
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
