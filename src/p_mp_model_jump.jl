@@ -32,12 +32,12 @@ function parse_commandline()
       help = "minimum number of coverage, e.g. [1, 2, 3]"
       arg_type = Int
       required = true
-    "--r"
+    "--R"
       help = """radius of coverage in meters, e.g. [3000.00, 4500.00, 6000.00];
       meters are gonna be converted to seconds if the specified metric is time;
       In p-mp model this argument is only used to calculate C1-C5 metrics"""
-      arg_type = Float64
       required = true
+	  nargs = '+'
     "--seed"
       help = "random seed for reproducing results"
       arg_type = Int
@@ -87,15 +87,17 @@ const n = args["n"] #numer of demand locations (max: 2000)
 const h = n #weights for demand locations, assumed to be 1 for all demand points
 const p = args["p"] #number of facilities
 const q = args["q"] #minimum number of coverage required
-const r = args["r"] #minimum number of coverage required
+const R = parse.(Float64, args["R"]) #minimum number of coverage required
 const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
 const seed = args["seed"]
 Random.seed!(seed)
 
-mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5));
-const reachable_nodes, node_data = find_connected_nodes(mx, metric)
+mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5),
+				  				trim_to_connected_graph = true);
+const node_data = create_distance_trees(mx, metric)
+const reachable_nodes = collect(keys(node_data))
 
 # ========================================
 #Output folder
@@ -162,10 +164,21 @@ t = @elapsed JuMP.optimize!(model)
 JuMP.value.(y)
 JuMP.value.(z)
 final_nodes = M[convert(Array{Bool}, JuMP.value.(y))]
+final_nodes = convert(Array{Int,1}, final_nodes)
 obj = estimate_amb_layout_goodness(final_nodes, mx)
 
 println("===== Calculating C1-C5 metrics =====")
-C1, C2, C3, C4, C5 = c1_c5_metrics(mx, final_nodes, metric, r, q)
+for radius in R
+	for cov in q
+		C1, C2, C3, C4, C5 = c1_c5_metrics(node_data, final_nodes, radius, cov)
+		df = DataFrame(
+			nodes = join(string.(sort(final_nodes)), ";"),
+			R = radius, q = cov, C1 = C1, C2 = C2, C3 = C3, C4 = C4, C5 = C5
+		)
+		CSV.write(output_path * "/../../c1_c5.csv", df, append=true)
+		CSV.write(output_path * "/ c1_c5.csv", df, append=true)
+	end
+end
 
 #Writing output information
 println("===== Writing Output information: 1. Results =====")
@@ -173,11 +186,6 @@ open(output_path * "/results.txt", "w") do f
   print(f, "===== Results =====" * "\n")
   print(f, "Processing time: " * string(t) * "\n")
   print(f, "Objective value: " * string(obj) * "\n")
-  print(f, "C1: " * string(C1) * "\n")
-  print(f, "C2: " * string(C2) * "\n")
-  print(f, "C3: " * string(C3) * "\n")
-  print(f, "C4: " * string(C4) * "\n")
-  print(f, "C5: " * string(C5) * "\n")
   print(f, "===== JuMP Information =====" * "\n")
   print(f, "Objective value: " * string(objective_value(model)))
 end
@@ -207,11 +215,26 @@ CSV.write(output_path * "/candidates.csv", candidates)
 CSV.write(output_path * "/demand_points.csv", demand_points)
 CSV.write(output_path * "/demand_assignment.csv", demand_assignment)
 
-results_df = DataFrame(datetime = Dates.now(), model_type = "p-mp", metric = metric,
-                       p = p, m = m, n = n, q = q, R = r, r = missing, obj = obj,
-                       obj2 = objective_value(model), proc_time = t,
-                       ruin_random = missing,
-                       C1 = C1, C2 = C2, C3 = C3, C4 = C4, C5 = C5)
+results_df = DataFrame(datetime = Dates.now(),
+					   model_type = "p-mp",
+					   metric = metric,
+             p = p,
+					   m = m,
+					   n = n,
+					   q = q,
+					   R = R,
+					   r = missing,
+					   obj = obj,
+             obj2 = objective_value(model),
+					   proc_time = t,
+             ruin_random = missing,
+					   initialization_strategy = missing,
+             C1 = missing,
+					   C2 = missing,
+					   C3 = missing,
+					   C4 = missing,
+					   C5 = missing,
+					   nodes = join(string.(sort(final_nodes)), ";"))
 CSV.write(output_path * "/../../output_all_models.csv", results_df, append=true)
 
 # Visualization of results in R's ggmap
@@ -237,8 +260,8 @@ if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
 
 R"""
 candidates <- candidates %>% arrange(is_occupied)
-circles_df <- make_circles(candidates %>% filter(is_occupied == 1),
-                           radius = $r/1000)
+#circles_df <- make_circles(candidates %>% filter(is_occupied == 1),
+#                           radius = $r/1000)
 
 plt <- ggmap(map_city) +
   geom_point(aes(x=lon, y=lat),
@@ -247,8 +270,8 @@ plt <- ggmap(map_city) +
                  fill=factor(is_occupied, labels = c("No", "Yes")),
                  size=factor(is_occupied, labels = c("No", "Yes")) ),
              data=candidates, shape = 23, alpha = 0.75) +
-  geom_polygon(data = circles_df, aes(lon, lat, group = node),
-               color = "orange", alpha = 0, linetype = "dashed") +
+#  geom_polygon(data = circles_df, aes(lon, lat, group = node),
+#               color = "orange", alpha = 0, linetype = "dashed") +
   scale_fill_manual(values = c("No" = "red", "Yes" = "green")) +
   scale_size_manual(values = c("No" = 1.5, "Yes" = 3)) +
   xlab("Longitude") + ylab("Latitude") +

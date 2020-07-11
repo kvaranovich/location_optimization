@@ -31,9 +31,10 @@ function build_distance_matrix_eucleadian(nodes1, nodes2, mx)
     return D_ij
 end
 
-function find_connected_nodes(mx::MapData, metric)
+function create_distance_trees(mx::MapData, metric)
     all_nodes = collect(keys(mx.v))
     node_data = Dict()
+
     if metric in ["distance", "eucledian"]
         y = nodes_within_driving_distance
     elseif metric == "time"
@@ -47,12 +48,7 @@ function find_connected_nodes(mx::MapData, metric)
         push!(node_data, node => nd_data)
     end
 
-    n_reachable_nodes_from_node = [length(v[1]) for (k,v) in node_data]
-    mode_reachable = modes(n_reachable_nodes_from_node)[1]
-    reachable_nodes = [k for (k,v) in node_data if length(v[1]) == mode_reachable]
-    unreachable_nodes = [k for (k,v) in node_data if length(v[1]) != mode_reachable]
-
-    return (reachable_nodes, node_data)
+    return node_data
 end
 
 function build_distance_matrix_graph(nodes1, nodes2, node_data)

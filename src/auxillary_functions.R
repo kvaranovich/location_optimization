@@ -38,14 +38,14 @@ generate_scenarios_iterative <- function() {
         "julia iterative_model.jl --city winnipeg --metric ", metric,
         " --p ", p,
         " --r ", r,
-        " --R 5000.0 --q 1 ",
+        " --R 2500.0 5000.0 7500.0 10000.0 --q 1 2 3 ",
         " --ruin_random ", ruin_random,
-        " --initialization_strategy", strategy,
+        " --initialization_strategy ", strategy,
         " --seed ", seed
       )
     )
   
-  write.table(scenarios_commands, "src/scenarios_iterative.txt",
+  write.table(scenarios_commands, "scenarios_iterative.txt",
             row.names = FALSE, col.names = FALSE, quote = TRUE)
 }
 

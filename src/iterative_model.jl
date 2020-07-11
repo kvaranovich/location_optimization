@@ -24,18 +24,19 @@ function parse_commandline()
       help = """radius of reachable nodes around each ambulance to consider at
       each optimization step. The higher the radius, the longer is optimization
       time. Examples: [100.00, 150.00, 175.00] for time and [1000.00, 2000.00, 3000.00]"""
-      arg_type = Float64
+	  arg_type = Float64
       required = true
     "--R"
-      help = """radius of required coverage / threshold in meters, e.g.
-      [3000.00, 4500.00, 6000.00] or seconds, e.g. [300.0, 600.0, 900.0];"""
-      arg_type = Float64
+      help = """list of radiuses of required coverage / threshold in meters, e.g.
+      [3000.00, 4500.00, 6000.00] or seconds, e.g. [300.0, 600.0, 900.0].
+	  Used only to calculate C1:C5 metrics. Doesn't influence final allocation."""
       required = true
+	  nargs = '+'
     "--q"
       help = """minimum number of coverage, e.g. [1, 2, 3]. Used only to calculate
       C1:C5 metrics. Doesn't influence final allocation."""
-      arg_type = Int
       required = true
+	  nargs = '+'
     "--ruin_random"
       help = """% of potential moves to randomly destroy at each iteration. In
       general, leads to better computing time at a cost of worse results. It
@@ -44,10 +45,10 @@ function parse_commandline()
       arg_type = Float64
       required = true
 	"--initialization_strategy"
-	    help = """how starting location are initialized. Can be either 'random' or
-	    'centered'"""
-	    arg_type = String
-	    required = true
+	  help = """how starting location are initialized. Can be either 'random' or
+	  'centered'"""
+	  arg_type = String
+	  required = true
 	"--seed"
 	  help = "random seed for reproducing results"
 	  arg_type = Int
@@ -93,8 +94,8 @@ include("performance_metrics.jl")
 println("===== Input parameters and data =====")
 const p = args["p"] #number of facilities
 const r = args["r"] #radius of local search
-const R = args["R"] #required threshold / coverage for an ambulance
-const q = args["q"] #required number of coverage for each demand point
+const R = parse.(Float64, args["R"]) #required threshold / coverage for an ambulance
+const q = parse.(Int, args["q"]) #required number of coverage for each demand point
 const city = args["city"]
 const map_path = "../osm_maps/" * city * ".osm"
 const metric = args["metric"]
@@ -111,7 +112,9 @@ else
 	error("Wrong strategy - choose either 'centered' or 'random'")
 end
 
-mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5));
+mx = get_map_data(map_path, use_cache=false, road_levels=Set(1:5),
+				  trim_to_connected_graph = true);
+node_data = create_distance_trees(mx, metric)
 
 # ========================================
 #Output folder
@@ -139,14 +142,24 @@ end
 println("===== Model optimization =====")
 
 initial_nodes = fun_init_strategy(mx, p)
-t = @elapsed opt_loc = location_optimization_radius(mx, initial_nodes, 100,
+t = @elapsed opt_loc = location_optimization_radius(mx, initial_nodes, 500,
                                                     metric, ruin_random, r)
 
 final_nodes = opt_loc[1][end]
 obj = opt_loc[2][end]
 
 println("===== Calculating C1-C5 metrics =====")
-C1, C2, C3, C4, C5 = c1_c5_metrics(mx, final_nodes, metric, R, q)
+for radius in R
+	for cov in q
+		C1, C2, C3, C4, C5 = c1_c5_metrics(node_data, final_nodes, radius, cov)
+		df = DataFrame(
+			nodes = join(string.(sort(final_nodes)), ";"),
+			R = radius, q = cov, C1 = C1, C2 = C2, C3 = C3, C4 = C4, C5 = C5
+		)
+		CSV.write(output_path * "/../../c1_c5.csv", df, append=true)
+		CSV.write(output_path * "/ c1_c5.csv", df, append=true)
+	end
+end
 
 #Writing output information
 println("===== Writing Output information: 1. Results =====")
@@ -154,11 +167,6 @@ open(output_path * "/results.txt", "w") do f
   print(f, "===== Results =====" * "\n")
   print(f, "Processing time: " * string(t) * "\n")
   print(f, "Objective value: " * string(obj) * "\n")
-  print(f, "C1: " * string(C1) * "\n")
-  print(f, "C2: " * string(C2) * "\n")
-  print(f, "C3: " * string(C3) * "\n")
-  print(f, "C4: " * string(C4) * "\n")
-  print(f, "C5: " * string(C5) * "\n")
 end
 
 #Converting nodes to Longitude, Latitude for visualization
@@ -171,15 +179,15 @@ LLA_final = [(x.lat, x.lon) for x in LLA_final]
 
 #Saving results to DataFrames and then to CSV
 println("===== Writing Output information: 2. final_nodes, demand_points =====")
-final_nodes = DataFrame(node = string.(final_nodes), #cast to string to avoid type convertsion between julia and R
-                       lat = [x[1] for x in LLA_final],
-                       lon = [x[2] for x in LLA_final])
-demand_points = DataFrame(node = string.(all_nodes), #cast to string to avoid type convertsion between julia and R
-                          lat = [x[1] for x in LLA_all],
-                          lon = [x[2] for x in LLA_all])
+final_nodes_df = DataFrame(node = string.(final_nodes), #cast to string to avoid type convertsion between julia and R
+                       	   lat = [x[1] for x in LLA_final],
+                       	   lon = [x[2] for x in LLA_final])
+demand_points_df = DataFrame(node = string.(all_nodes), #cast to string to avoid type convertsion between julia and R
+                             lat = [x[1] for x in LLA_all],
+                             lon = [x[2] for x in LLA_all])
 
-CSV.write(output_path * "/final_nodes.csv", final_nodes)
-CSV.write(output_path * "/demand_points.csv", demand_points)
+CSV.write(output_path * "/final_nodes.csv", final_nodes_df)
+CSV.write(output_path * "/demand_points.csv", demand_points_df)
 
 # Transitions data frame - for animation of optimization process
 states = collect(Iterators.flatten(opt_loc[1]))
@@ -196,15 +204,32 @@ transitions_df = DataFrame(
 
 CSV.write(output_path * "/transitions_df.csv", transitions_df)
 
-results_df = DataFrame(datetime = Dates.now(), model_type = "iterative", metric = metric,
-                       p = p, m = length(mx.v), n = length(mx.v), q = q, R = R, r = r,
-                       obj = obj, obj2 = 0.0, proc_time = t, ruin_random = ruin_random,
-                       C1 = C1, C2 = C2, C3 = C3, C4 = C4, C5 = C5)
+results_df = DataFrame(datetime = Dates.now(),
+					   model_type = "iterative",
+					   metric = metric,
+					   p = p,
+					   m = length(mx.v),
+					   n = length(mx.v),
+					   q = missing,
+					   R = missing,
+					   r = r,
+					   obj = obj,
+					   obj2 = 0.0,
+					   proc_time = t,
+					   ruin_random = ruin_random,
+					   initialization_strategy = initialization_strategy,
+					   C1 = missing,
+					   C2 = missing,
+					   C3 = missing,
+					   C4 = missing,
+					   C5 = missing,
+                       nodes = join(string.(sort(final_nodes)), ";")
+					   )
 CSV.write(output_path * "/../../output_all_models.csv", results_df, append=true)
 
 # Visualization of results in R's ggmap
 println("===== Writing Output information: 3. Plotting results on a map =====")
-@rput final_nodes demand_points transitions_df times
+@rput final_nodes_df demand_points_df transitions_df times
 
 R"""
 library(ggplot2)
@@ -215,8 +240,8 @@ source("auxillary_functions.R")
 if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
   KEY <- readr::read_file('../GOOGLE_API_KEY.txt');
   register_google(key = KEY);
-  map_city <- get_googlemap(center = c(lon = mean(demand_points$lon),
-                                       lat = mean(demand_points$lat)))
+  map_city <- get_googlemap(center = c(lon = mean(demand_points_df$lon),
+                                       lat = mean(demand_points_df$lat)))
   saveRDS(map_city, file = paste0("../ggmaps/", $city, ".RDS"))
 } else {
   map_city <- readRDS(file = paste0("../ggmaps/", $city, ".RDS"))
@@ -224,15 +249,15 @@ if (!file.exists((paste0("../ggmaps/", $city, ".RDS")))) {
 """
 
 R"""
-circles_df <- make_circles(final_nodes, radius = $R/1000)
+#circles_df <- make_circles(final_nodes_df, radius = $R/1000)
 
 plt <- ggmap(map_city) +
   geom_point(aes(x=lon, y=lat),
-             data=demand_points, color="black", size=1, alpha = 0.5) +
-  geom_point(aes(x=lon, y=lat), data=final_nodes,
+             data=demand_points_df, color="black", size=1, alpha = 0.5) +
+  geom_point(aes(x=lon, y=lat), data=final_nodes_df,
              shape = 23, alpha = 0.75, size=3, fill="green") +
-  geom_polygon(data = circles_df, aes(lon, lat, group = node),
-               color = "orange", alpha = 0, linetype = "dashed") +
+#  geom_polygon(data = circles_df, aes(lon, lat, group = node),
+#               color = "orange", alpha = 0, linetype = "dashed") +
   xlab("Longitude") + ylab("Latitude") +
   ggtitle("Demand Points",
           subtitle = paste0("City: ", stringr::str_to_title($city), "\n",

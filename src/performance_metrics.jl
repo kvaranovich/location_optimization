@@ -1,5 +1,5 @@
 """
-    c1_c5_metrics(mx::MapData, positions::Vector{Int}, metric, R::Float64, Q::Int)
+    c1_c5_metrics(node_data, positions::Vector{Int}, metric, R::Float64, Q::Int)
 
 Calculates C1:C5 metrics:
 - C1 - Mean Distance to Primary
@@ -11,9 +11,8 @@ within a range threshold
 range threshold
 
 # Arguments
-- `mx::MapData`: MapData object from OpenStreetMapX library
+- `node_data`: distance trees for each node
 - `positions::Vector{Int}`: List of nodes inidicating positions of ambulances
-- `metric{String}::String`: Whether to use time or distance to calculate metrics
 - `R::Float64`: range threshold, i.e. coverage of one ambulance
 - `Q::Int`: required number of coverage for each demand node
 
@@ -23,19 +22,9 @@ c1, c2, c3, c4, c5 = c1_c5_metrics(mx, positions, "time", 500, 2)
 ```
 """
 
-function c1_c5_metrics(mx::MapData, positions::Vector{Int}, metric::String, R::Float64, Q::Int)
-    if metric == "distance"
-        y = nodes_within_driving_distance
-    elseif metric == "time"
-        y = nodes_within_driving_time
-    else
-        error("Only metric = \"distance\" or metric = \"time\" is allowed")
-    end
-
+function c1_c5_metrics(node_data, positions::Vector{Int}, R::Float64, Q::Int)
     n = length(positions)
-    reachable_nodes, node_data = find_connected_nodes(mx, metric)
-
-    metrics_df = DataFrame(node = reachable_nodes)
+    metrics_df = DataFrame(node = collect(keys(node_data)))
 
     for (ind, val) in enumerate(positions)
         amb_i, dist_i = ["amb_", "dist_"] .* string(ind)
